@@ -38,8 +38,10 @@ counter = 0
 loop_start:
   print "Counter is"
   print counter
+
   counter = counter + 1
-  if counter < 3 loop_start
+
+  if counter < 3 goto loop_start
 
 print "Loop finished."
 

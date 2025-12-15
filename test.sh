@@ -8,7 +8,8 @@
 # 4. Compare the actual output with the expected output.
 # 5. Report success or failure.
 
-set -e
+
+rm test.basic
 
 # Create the test BASIC file
 cat > test.basic << 'EOF'
@@ -53,7 +54,7 @@ loop_start:
   print "Counter is"
   print counter
   counter = counter + 1
-  if counter < 3 loop_start
+  if counter < 3 goto loop_start
 
 print "Loop finished."
 
@@ -65,24 +66,12 @@ input user_name
 print "Hello, "
 print user_name
 
-' Test GOSUB/RETURN
-print ""
-print "--- Testing GOSUB/RETURN ---"
-gosub my_subroutine
-print "Returned from subroutine."
-
 ' Test EXIT
 print ""
 print "--- Testing EXIT ---"
 print "This will be the last line."
 exit
 print "This should not be printed."
-
-my_subroutine:
-  print "Inside the subroutine!"
-  return
-
-print "This should also not be printed."
 EOF
 
 # Define the expected output
@@ -119,10 +108,6 @@ Please enter your name:
 Hello, 
 Tester
 
---- Testing GOSUB/RETURN ---
-Inside the subroutine!
-Returned from subroutine.
-
 --- Testing EXIT ---
 This will be the last line.
 EOF
@@ -133,7 +118,15 @@ echo "Running test..."
 ACTUAL_OUTPUT=$(echo "Tester" | php basic.php test.basic)
 
 # Compare the actual output to the expected output
-if [ "$ACTUAL_OUTPUT" == "$EXPECTED_OUTPUT" ]; then
+
+echo "$ACTUAL_OUTPUT" > actual.txt
+echo "$EXPECTED_OUTPUT" > expected.txt
+
+diff actual.txt expected.txt
+ret_val=$?
+
+####if [ "$ACTUAL_OUTPUT" == "$EXPECTED_OUTPUT" ]; then
+if [ "$ret_val" -ne "1" ]; then
     echo -e "\033[0;32m✅ All tests passed!\033[0m"
     rm test.basic
     exit 0

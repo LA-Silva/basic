@@ -94,28 +94,28 @@ class Basic {
 		$tokens = array();
 		
 		// The current state of our tokeniser
-		$state = S_DEFAULT;
+		$state = self::S_DEFAULT;
 		$token = "";
 		
 		// Keep a one-to-one mapping of all the single-character tokens here
 		// in an array that we can pull out later.
 		$character_tokens = array(
-			"=" => TOKEN_EQUALS,
-			"+" => TOKEN_OPERATOR,
-			"-" => TOKEN_OPERATOR,
-			"*" => TOKEN_OPERATOR,
-			"/" => TOKEN_OPERATOR,
-			"<" => TOKEN_OPERATOR,
-			">" => TOKEN_OPERATOR,
-			"(" => TOKEN_LEFT_PARENTHESIES,
-			")" => TOKEN_RIGHT_PARENTHESIES
+			"=" => self::TOKEN_EQUALS,
+			"+" => self::TOKEN_OPERATOR,
+			"-" => self::TOKEN_OPERATOR,
+			"*" => self::TOKEN_OPERATOR,
+			"/" => self::TOKEN_OPERATOR,
+			"<" => self::TOKEN_OPERATOR,
+			">" => self::TOKEN_OPERATOR,
+			"(" => self::TOKEN_LEFT_PARENTHESIES,
+			")" => self::TOKEN_RIGHT_PARENTHESIES
 		);
 		
 		// Scan through each character of the source code at
 		// a time and build up a tokenised representation of the source
 		for ($i = 0; $i < strlen($source); $i++) {
 			// Get the current character
-			$char = $source{$i};
+			$char = $source[$i];
 			
 			// Switch the state
 			switch ($state) {
@@ -124,7 +124,7 @@ class Basic {
 				 * The "default" state: routine code parsing. We can use this opportunity
 				 * to check for single-char tokens, as well as change state if we need to.
 				 */
-				case S_DEFAULT:
+				case self::S_DEFAULT:
 					// Is our character inside the single character tokens array? If
 					// so, get the token type and add a new token.
 					if (isset($character_tokens[$char])) {
@@ -135,23 +135,23 @@ class Basic {
 					// Words can represent either a label (for gotos) or a variable
 					else if (ctype_alpha($char)) {
 						$token .= $char;
-						$state = S_WORD;
+						$state = self::S_WORD;
 					}
 					
 					// Is our character a digit? If so, we're about to start a number.
 					else if (is_numeric($char)) {
 						$token .= $char;
-						$state = S_NUMBER;
+						$state = self::S_NUMBER;
 					}
 					
 					// Is our character a quote? We're about to start a string
 					else if ($char == '"') {
-						$state = S_STRING;
+						$state = self::S_STRING;
 					}
 					
 					// Is our character a single quote? Comment time
 					else if ($char == "'") {
-						$state = S_COMMENT;
+						$state = self::S_COMMENT;
 					}
 					
 					break;
@@ -160,7 +160,7 @@ class Basic {
 				 * The "word" state. We check the next character. If it's a letter or digit,
 				 * continue the word. If it ends with a colon, it's a label, otherwise it's a word.
 				 */
-				case S_WORD:
+				case self::S_WORD:
 					// Is our character a letter or digit? If it is, we're continuing the word
 					if (ctype_alnum($char) || $char == '_') {
 						$token .= $char;
@@ -168,19 +168,27 @@ class Basic {
 					
 					// Is our character a colon? It's a label
 					else if ($char == ":") {
-						$tokens[] = new Token($token, TOKEN_LABEL);
+						$tokens[] = new Token($token, self::TOKEN_LABEL);
 						$token = "";
-						$state = S_DEFAULT;
+						$state = self::S_DEFAULT;
 					}
 					
 					// Our word has ended
 					else {
 						// Add the token
-						$tokens[] = new Token($token, TOKEN_WORD);
+						// But first, is it a REM keyword? If so, it's a comment
+						if (strtolower($token) == 'rem') {
+							$state = self::S_COMMENT;
+							$token = "";
+							$i--; // Reprocess the current character in the new state
+							break;
+						}
+						
+						$tokens[] = new Token($token, self::TOKEN_WORD);
 						
 						// Reset the state
 						$token = "";
-						$state = S_DEFAULT;
+						$state = self::S_DEFAULT;
 						
 						// Reprocess the current character in S_DEFAULT
 						$i--;
@@ -192,7 +200,7 @@ class Basic {
 				 * The number state. If the next character is numeric, we're continuing the number.
 				 * Otherwise, add the new token.
 				 */
-				case S_NUMBER:
+				case self::S_NUMBER:
 					// Is it numeric?
 					if (is_numeric($char)) {
 						$token .= $char;
@@ -201,11 +209,11 @@ class Basic {
 					// We're done. Add the token
 					else {
 						// Add the token
-						$tokens[] = new Token($token, TOKEN_NUMBER);
+						$tokens[] = new Token($token, self::TOKEN_NUMBER);
 						
 						// Reset the state
 						$token = "";
-						$state = S_DEFAULT;
+						$state = self::S_DEFAULT;
 						
 						// Reprocess the current character in S_DEFAULT
 						$i--;
@@ -216,15 +224,15 @@ class Basic {
 				/**
 				 * The string state. Any character can be in a string except a quote, so whack it on.
 				 */
-				case S_STRING:
+				case self::S_STRING:
 					// Is it a quote?
 					if ($char == '"') {
 						// Add the token
-						$tokens[] = new Token($token, TOKEN_STRING);
+						$tokens[] = new Token($token, self::TOKEN_STRING);
 						
 						// Reset the state
 						$token = "";
-						$state = S_DEFAULT;
+						$state = self::S_DEFAULT;
 					}
 					
 					// Continue with our string
@@ -238,11 +246,11 @@ class Basic {
 				 * The comment state. Comments are terminated by a newline, so check for that. We're just
 				 * ignoring it if it's a comment, because the parser doesn't give a damn.
 				 */
-				case S_COMMENT:
+				case self::S_COMMENT:
 					// Is it a newline?
 					if ($char == "\n") {
 						// Reset the state
-						$state = S_DEFAULT;
+						$state = self::S_DEFAULT;
 					}
 					
 					break;
@@ -311,14 +319,14 @@ class Parser {
 		// track of when we're done
 		while (TRUE) {
 			// Is this a label?
-			if ($this->match(TOKEN_LABEL)) {
+			if ($this->match(Basic::TOKEN_LABEL)) {
 				// Record this label, linking it to the current index of the 
 				// statements. This is so we can route the program flow later
-				$labels[$this->previous()->token] = (count($statements) > 0) ? count($statements) - 1 : 0;
+				$labels[$this->previous()->token] = count($statements);
 			}
 			
 			// Is it an assignment?
-			else if ($this->match(TOKEN_WORD, TOKEN_EQUALS)) {
+			else if ($this->match(Basic::TOKEN_WORD, Basic::TOKEN_EQUALS)) {
 				// Create a new assignment statement with the current token text (the variable's name), and
 				// parse the expression
 				$this->position++;
@@ -336,7 +344,7 @@ class Parser {
 			else if ($this->current()->token == "input") {
 				// Get the next token (variable name) and create new input statement
 				// We're using next_token() to ensure that the next token is indeed a TOKEN_WORD.
-				$statements[] = new InputStatement($this->next_token(TOKEN_WORD)->token);
+				$statements[] = new InputStatement($this->next_token(Basic::TOKEN_WORD)->token);
 				$this->position++;
 				$this->position++;
 			}
@@ -344,7 +352,7 @@ class Parser {
 			// Is it a goto statement?
 			else if ($this->current()->token == "goto") {
 				// Similar to above, get the next token (label to go to) and create new goto statement
-				$statements[] = new GotoStatement($this->next_token(TOKEN_WORD)->token);
+				$statements[] = new GotoStatement($this->next_token(Basic::TOKEN_WORD)->token);
 				$this->position++;
 				$this->position++;
 			}
@@ -357,7 +365,7 @@ class Parser {
 				$condition = $this->expression();
 				
 				// Then we want the label to go to
-				$label = $this->next_token(TOKEN_WORD)->token;
+				$label = $this->next_token(Basic::TOKEN_WORD)->token;
 				$this->position++;
 				$this->position++;
 				
@@ -368,7 +376,7 @@ class Parser {
 			// Is it a gosub statement?
 			else if ($this->current()->token == "gosub") {
 				// Get the next token (label to go to) and create new gosub statement
-				$statements[] = new GosubStatement($this->next_token(TOKEN_WORD)->token);
+				$statements[] = new GosubStatement($this->next_token(Basic::TOKEN_WORD)->token);
 				$this->position++;
 				$this->position++;
 			}
@@ -529,7 +537,7 @@ class Parser {
 		$expression = $this->atomic();
 		
 		// As long as we have operators, keep building operator expressions
-		while ($this->match(TOKEN_OPERATOR) || $this->match(TOKEN_EQUALS)) {
+		while ($this->match(Basic::TOKEN_OPERATOR) || $this->match(Basic::TOKEN_EQUALS)) {
 			// Get the operator
 			$operator = $this->previous()->token;
 			
@@ -553,22 +561,22 @@ class Parser {
 	 **/
 	public function atomic() {
 		// Is it a word? Words reference variables
-		if ($this->match(TOKEN_WORD)) {
+		if ($this->match(Basic::TOKEN_WORD)) {
 			return new VariableExpression($this->previous()->token);
 		}
 		
 		// A number? Parse it as a float
-		else if ($this->match(TOKEN_NUMBER)) {
+		else if ($this->match(Basic::TOKEN_NUMBER)) {
 			return new NumberExpression(floatval($this->previous()->token));
 		}
 		
 		// A string?
-		else if ($this->match(TOKEN_STRING)) {
+		else if ($this->match(Basic::TOKEN_STRING)) {
 			return new StringExpression($this->previous()->token);
 		}
 		
 		// Left parenthesis, a new expression
-		else if ($this->match(TOKEN_LEFT_PARENTHESIES)) {
+		else if ($this->match(Basic::TOKEN_LEFT_PARENTHESIES)) {
 			// Parse the expression and find the closing parenthesis
 			$expression = $this->expression();
 			$this->position++;
@@ -648,7 +656,9 @@ class GotoStatement implements Statement {
 	
 	public function execute() {
 		if (isset(Basic::$labels[$this->label])) {
-			Basic::$current_statement = (int)Basic::$labels[$this->label];
+			// We subtract 1 because the main interpreter loop will increment
+			// the statement counter after this statement executes.
+			Basic::$current_statement = (int)Basic::$labels[$this->label] - 1;
 		}
 	}
 }
