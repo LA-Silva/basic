@@ -54,6 +54,7 @@ class Basic {
 	static public $statements = array();
 	static public $labels = array();
 	static public $current_statement = 0;
+	static public $call_stack = array();
 	
 	/**
 	 * This function runs the BASIC source through the interpretation
@@ -230,6 +231,8 @@ class Basic {
 					else {
 						$token .= $char;
 					}
+
+					break;
 					
 				/**
 				 * The comment state. Comments are terminated by a newline, so check for that. We're just
@@ -360,6 +363,21 @@ class Parser {
 				
 				// Create the new statement
 				$statements[] = new IfThenStatement($condition, $label);
+			}
+			
+			// Is it a gosub statement?
+			else if ($this->current()->token == "gosub") {
+				// Get the next token (label to go to) and create new gosub statement
+				$statements[] = new GosubStatement($this->next_token(TOKEN_WORD)->token);
+				$this->position++;
+				$this->position++;
+			}
+			
+			// Is it a return statement?
+			else if ($this->current()->token == "return") {
+				// Create new return statement
+				$this->position++;
+				$statements[] = new ReturnStatement();
 			}
 			
 			// Is it an exit statement?
@@ -649,6 +667,41 @@ class IfThenStatement implements Statement {
 			$goto = new GotoStatement($this->label);
 			$goto->execute();
 		}
+	}
+}
+
+/**
+ * A gosub statement moves the program execution flow to a labelled subroutine,
+ * remembering where it came from.
+ */
+class GosubStatement implements Statement {
+	public function __construct($label) {
+		$this->label = $label;
+	}
+	
+	public function execute() {
+		// Push the return address (the next statement) onto the call stack
+		array_push(Basic::$call_stack, Basic::$current_statement + 1);
+		
+		// Now, go to the label. We can just reuse the GotoStatement's logic.
+		$goto = new GotoStatement($this->label);
+		$goto->execute();
+	}
+}
+
+/**
+ * A return statement returns from a subroutine to the statement after the
+ * original GOSUB call.
+ */
+class ReturnStatement implements Statement {
+	public function execute() {
+		if (empty(Basic::$call_stack)) {
+			throw new BasicParserException("RETURN without a GOSUB");
+		}
+		
+		// Pop the return address from the stack and jump to it.
+		// We subtract 1 because the main interpreter loop will increment it.
+		Basic::$current_statement = array_pop(Basic::$call_stack) - 1;
 	}
 }
 
