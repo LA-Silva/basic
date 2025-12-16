@@ -320,6 +320,11 @@ class Parser {
 		// Infinite loop; we'll use $this->position to keep
 		// track of when we're done
 		while (TRUE) {
+			// Have we run out of tokens?
+			if ($this->position >= count($this->tokens)) {
+				break;
+			}
+
 			// Is this a label?
 			if ($this->match(Basic::TOKEN_LABEL)) {
 				// Record this label, linking it to the current index of the 
@@ -445,6 +450,11 @@ class Parser {
 	 * @author Jamie Rumbelow
 	 **/
 	public function next_token($type) {
+		// Boundary check to prevent reading past the end of the tokens array
+		if (!isset($this->tokens[$this->position + 1])) {
+			return FALSE;
+		}
+
 		$token = $this->tokens[$this->position + 1];
 		
 		// Check the token and type match
@@ -485,6 +495,11 @@ class Parser {
 	 * @author Jamie Rumbelow
 	 */
 	public function match($token_one, $token_two = FALSE) {
+		// Boundary check to prevent reading past the end of the tokens array
+		if ($this->position >= count($this->tokens)) {
+			return FALSE;
+		}
+
 		if (!$token_two) {
 			// Compare and return
 			if ($this->current()->type == $token_one) {
