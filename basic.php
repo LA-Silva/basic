@@ -769,8 +769,9 @@ class GosubStatement implements Statement {
 	}
 	
 	public function execute() {
+
 		array_push(Basic::$call_stack, Basic::$current_statement + 1); // Push return address
-		Basic::$current_statement = (int)Basic::$labels[$this->label]; // Jump to label
+		Basic::$current_statement = (int)Basic::$labels[$this->label]  ; // Jump to label
 		return FALSE; // Signal a jump
 	}
 }
