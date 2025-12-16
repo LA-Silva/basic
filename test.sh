@@ -70,6 +70,8 @@ my_subroutine:
   print "Inside subroutine."
   return
 
+
+
 after_subroutine:
 ' Test INPUT
 print ""
@@ -148,7 +150,7 @@ if [ "$ret_val" -eq "0" ]; then
     rm test.basic actual.txt expected.txt
     exit 0
 else
-    diff -y actual.txt expected.txt
+    diff -y  expected.txt actual.txt
     echo -e "\033[0;31m❌ Test failed!\033[0m"
     rm test.basic actual.txt expected.txt
     exit 1

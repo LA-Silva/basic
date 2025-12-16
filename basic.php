@@ -733,10 +733,10 @@ class GotoStatement implements Statement {
 		$this->label = $label;
 	}
 	
-	public function execute() {
+	public function execute() { // This function is called when a GOTO statement is executed.
 		if (isset(Basic::$labels[$this->label])) {
 			// Set the program counter to the label's address
-			Basic::$current_statement = (int)Basic::$labels[$this->label];
+			Basic::$current_statement = (int)Basic::$labels[$this->label] - 1;
 			return FALSE; // Signal a jump
 		}
 	}
