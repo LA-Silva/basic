@@ -45,6 +45,20 @@ loop_start:
 
 print "Loop finished."
 
+' Test String Functions
+print ""
+print "--- Testing String Functions ---"
+s$ = "HELLO WORLD"
+print "Original: " + s$
+print "Length:"
+print LEN(s$)
+print "LEFT$(s$, 5):"
+print LEFT$(s$, 5)
+print "RIGHT$(s$, 5):"
+print RIGHT$(s$, 5)
+print "MID$(s$, 7, 5):"
+print MID$(s$, 7, 5)
+
 ' Test INPUT
 print ""
 print "--- Testing INPUT ---"
@@ -53,9 +67,18 @@ input user_name
 print "Hello, "
 print user_name
 
+' Test GOSUB
+gosub somelabel
+
+
 ' Test EXIT
 print ""
 print "--- Testing EXIT ---"
 print "This will be the last line."
 exit
 print "This should not be printed."
+
+somelabel:
+print "gosub test"
+print "hello again" + user_name
+return

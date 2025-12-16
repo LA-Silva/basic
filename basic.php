@@ -74,9 +74,15 @@ class Basic {
 		$parser->parse();
 		
 		// Loop through the statements and execute them
-		while (self::$current_statement < count(self::$statements)) {
-			self::$statements[self::$current_statement]->execute();
-			self::$current_statement++;
+		while (TRUE) {
+			if (self::$current_statement >= count(self::$statements)) {
+				break;
+			}
+
+			// If execute() returns false, it's a jump, so don't increment
+			if (self::$statements[self::$current_statement]->execute() !== FALSE) {
+				self::$current_statement++;
+			}
 		}
 	}
 	
@@ -259,6 +265,18 @@ class Basic {
 			}
 		}
 		
+		// After the loop, we might have a pending token if the file doesn't end with a newline
+		if ($token !== "") {
+			switch ($state) {
+				case self::S_WORD:
+					$tokens[] = new Token($token, self::TOKEN_WORD);
+					break;
+				case self::S_NUMBER:
+					$tokens[] = new Token($token, self::TOKEN_NUMBER);
+					break;
+			}
+		}
+
 		return $tokens;
 	}
 }
@@ -695,9 +713,9 @@ class GotoStatement implements Statement {
 	
 	public function execute() {
 		if (isset(Basic::$labels[$this->label])) {
-			// We subtract 1 because the main interpreter loop will increment
-			// the statement counter after this statement executes.
-			Basic::$current_statement = (int)Basic::$labels[$this->label] - 1;
+			// Set the program counter to the label's address
+			Basic::$current_statement = (int)Basic::$labels[$this->label];
+			return FALSE; // Signal a jump
 		}
 	}
 }
@@ -729,12 +747,9 @@ class GosubStatement implements Statement {
 	}
 	
 	public function execute() {
-		// Push the return address (the next statement) onto the call stack
-		array_push(Basic::$call_stack, Basic::$current_statement + 1);
-		
-		// Now, go to the label. We can just reuse the GotoStatement's logic.
-		$goto = new GotoStatement($this->label);
-		$goto->execute();
+		array_push(Basic::$call_stack, Basic::$current_statement + 1); // Push return address
+		Basic::$current_statement = (int)Basic::$labels[$this->label]; // Jump to label
+		return FALSE; // Signal a jump
 	}
 }
 
@@ -750,7 +765,8 @@ class ReturnStatement implements Statement {
 		
 		// Pop the return address from the stack and jump to it.
 		// We subtract 1 because the main interpreter loop will increment it.
-		Basic::$current_statement = array_pop(Basic::$call_stack) - 1;
+		Basic::$current_statement = array_pop(Basic::$call_stack);
+		return FALSE; // Signal a jump
 	}
 }
 
