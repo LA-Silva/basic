@@ -143,7 +143,7 @@ echo "$EXPECTED_OUTPUT" > expected.txt
 diff actual.txt expected.txt
 ret_val=$?
 
-if [ "$ret_val" -ne "1" ]; then
+if [ "$ret_val" -eq "0" ]; then
     echo -e "\033[0;32m✅ All tests passed!\033[0m"
     rm test.basic actual.txt expected.txt
     exit 0
@@ -153,4 +153,3 @@ else
     rm test.basic actual.txt expected.txt
     exit 1
 fi
-

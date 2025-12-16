@@ -30,6 +30,7 @@ class Basic {
 	const TOKEN_EQUALS = 5;
 	const TOKEN_OPERATOR = 6;
 	const TOKEN_LEFT_PARENTHESIES = 7;
+	const TOKEN_COMMA = 10;
 	const TOKEN_RIGHT_PARENTHESIES = 8;
 	const TOKEN_EOF = 9;
 	
@@ -108,7 +109,8 @@ class Basic {
 			"<" => self::TOKEN_OPERATOR,
 			">" => self::TOKEN_OPERATOR,
 			"(" => self::TOKEN_LEFT_PARENTHESIES,
-			")" => self::TOKEN_RIGHT_PARENTHESIES
+			")" => self::TOKEN_RIGHT_PARENTHESIES,
+			"," => self::TOKEN_COMMA
 		);
 		
 		// Scan through each character of the source code at
@@ -162,7 +164,7 @@ class Basic {
 				 */
 				case self::S_WORD:
 					// Is our character a letter or digit? If it is, we're continuing the word
-					if (ctype_alnum($char) || $char == '_') {
+					if (ctype_alnum($char) || $char == '_' || $char == '$') {
 						$token .= $char;
 					}
 					
@@ -562,7 +564,29 @@ class Parser {
 	public function atomic() {
 		// Is it a word? Words reference variables
 		if ($this->match(Basic::TOKEN_WORD)) {
-			return new VariableExpression($this->previous()->token);
+			// Is it a function call?
+			if ($this->current()->type == Basic::TOKEN_LEFT_PARENTHESIES) {
+				$function_name = $this->previous()->token;
+				$this->position++; // Consume '('
+				
+				$arguments = [];
+				
+				// Are there arguments?
+				if ($this->current()->type != Basic::TOKEN_RIGHT_PARENTHESIES) {
+					do {
+						$arguments[] = $this->expression();
+					} while ($this->match(Basic::TOKEN_COMMA));
+				}
+				
+				// Expect a closing parenthesis
+				if (!$this->match(Basic::TOKEN_RIGHT_PARENTHESIES)) {
+					throw new BasicParserException("Expected ')' after function arguments.");
+				}
+				
+				return new FunctionCallExpression($function_name, $arguments);
+			} else {
+				return new VariableExpression($this->previous()->token);
+			}
 		}
 		
 		// A number? Parse it as a float
@@ -628,7 +652,7 @@ class InputStatement implements Statement {
 	}
 	
 	public function execute() {
-		Basic::$variables[$this->variable] = trim(fgets(fopen("php://stdin","r")));
+		Basic::$variables[$this->variable] = trim(fgets(STDIN));
 	}
 }
 
@@ -785,17 +809,17 @@ class OperatorExpression implements Expression {
 		switch ($this->operator) {
 			case '=':
 				if (is_string($left)) {
-					return (bool)($left == (string)$right);
+					return $left === (string)$right;
 				} else {
-					return (bool)($left == (int)$right);
+					return $left == $right;
 				}
 				break;
 			
 			case '+':
 				if (is_string($left)) {
-					return $left .= (string)$right;
+					return $left . (string)$right;
 				} else {
-					return $left + (int)$right;
+					return $left + $right;
 				}
 				break;
 				
@@ -812,15 +836,72 @@ class OperatorExpression implements Expression {
 				break;
 				
 			case '<':
-				return (bool)($left < $right);
+				return $left < $right;
 				break;
 			
 			case '>':
-				return (bool)($left > $right);
+				return $left > $right;
 				break;
 		}
 		
 		throw new BasicParserException("Unknown operator '".$this->operator."'");
+	}
+}
+
+/**
+ * A function call expression.
+ */
+class FunctionCallExpression implements Expression {
+	protected $name;
+	protected $arguments;
+
+	public function __construct($name, $arguments) {
+		$this->name = strtolower($name);
+		$this->arguments = $arguments;
+	}
+
+	public function evaluate() {
+		// Evaluate all argument expressions first
+		$evaluated_args = [];
+		foreach ($this->arguments as $arg) {
+			$evaluated_args[] = $arg->evaluate();
+		}
+
+		switch ($this->name) {
+			case 'len':
+				if (count($evaluated_args) !== 1) {
+					throw new BasicParserException("LEN() expects 1 argument.");
+				}
+				return strlen((string)$evaluated_args[0]);
+
+			case 'left$':
+				if (count($evaluated_args) !== 2) {
+					throw new BasicParserException("LEFT$() expects 2 arguments.");
+				}
+				return substr((string)$evaluated_args[0], 0, (int)$evaluated_args[1]);
+
+			case 'right$':
+				if (count($evaluated_args) !== 2) {
+					throw new BasicParserException("RIGHT$() expects 2 arguments.");
+				}
+				return substr((string)$evaluated_args[0], -(int)$evaluated_args[1]);
+
+			case 'mid$':
+				if (count($evaluated_args) < 2 || count($evaluated_args) > 3) {
+					throw new BasicParserException("MID$() expects 2 or 3 arguments.");
+				}
+				$string = (string)$evaluated_args[0];
+				$start = (int)$evaluated_args[1] - 1; // BASIC strings are 1-indexed
+				$length = isset($evaluated_args[2]) ? (int)$evaluated_args[2] : null;
+				
+				if ($length === null) {
+					return substr($string, $start);
+				}
+				return substr($string, $start, $length);
+
+			default:
+				throw new BasicParserException("Unknown function '" . $this->name . "'");
+		}
 	}
 }
 
