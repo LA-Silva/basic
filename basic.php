@@ -11,6 +11,28 @@
  * @package basic
  **/
 
+	/**
+	 * Summary of supported BASIC statements:
+	 *
+	 * 1.  **Assignment (`VAR = EXPRESSION`)**: Assigns the result of an expression to a variable.
+	 * 2.  **Print (`PRINT EXPRESSION`)**: Evaluates an expression and prints its result to standard output, followed by a newline.
+	 * 3.  **Input (`INPUT VAR`)**: Prompts the user for input from standard input and assigns it to the specified variable.
+	 * 4.  **Goto (`GOTO LABEL`)**: Unconditionally transfers program control to the statement associated with the given label.
+	 * 5.  **If-Then (`IF EXPRESSION THEN LABEL`)**: Evaluates an expression; if it's true, transfers program control to the statement associated with the given label.
+	 * 6.  **Gosub (`GOSUB LABEL`)**: Transfers program control to a subroutine at the specified label, pushing the return address onto a call stack.
+	 * 7.  **Return (`RETURN`)**: Returns from a subroutine to the statement immediately following the last `GOSUB` call, popping the return address from the call stack.
+	 * 8.  **Exit (`EXIT`)**: Terminates program execution.
+	 * 9.  **Labels (`LABEL:`)**: Defines a named point in the code that can be jumped to by `GOTO`, `IF-THEN`, or `GOSUB` statements.
+	 * 10. **Comments (`' comment` or `REM comment`)**: Lines starting with a single quote or the `REM` keyword are ignored by the interpreter.
+	 *
+	 * Supported expressions include:
+	 * -   Literals: Numbers, Strings.
+	 * -   Variables.
+	 * -   Binary Operators: `=`, `+`, `-`, `*`, `/`, `<`, `>`.
+	 * -   Function Calls: `LEN()`, `LEFT$()`, `RIGHT$()`, `MID$()`, `ASC()`, `CHR$()`, `VAL()`.
+	 */
+
+
 /**
  * The main Basic class
  *
@@ -929,6 +951,33 @@ class FunctionCallExpression implements Expression {
 					return substr($string, $start);
 				}
 				return substr($string, $start, $length);
+
+			case 'asc':
+				if (count($evaluated_args) !== 1) {
+					throw new BasicParserException("ASC() expects 1 argument.");
+				}
+				$char = (string)$evaluated_args[0];
+				if (strlen($char) === 0) {
+					throw new BasicParserException("ASC() expects a non-empty string.");
+				}
+				return ord($char[0]);
+
+			case 'chr$':
+				if (count($evaluated_args) !== 1) {
+					throw new BasicParserException("CHR$() expects 1 argument.");
+				}
+				$ascii_code = (int)$evaluated_args[0];
+				if ($ascii_code < 0 || $ascii_code > 255) { // Assuming ASCII range
+					throw new BasicParserException("CHR$() argument out of ASCII range (0-255).");
+				}
+				return chr($ascii_code);
+
+			case 'val':
+				if (count($evaluated_args) !== 1) {
+					throw new BasicParserException("VAL() expects 1 argument.");
+				}
+				// PHP's floatval handles leading numbers and stops at non-numeric characters
+				return floatval((string)$evaluated_args[0]);
 
 			default:
 				throw new BasicParserException("Unknown function '" . $this->name . "'");
