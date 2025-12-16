@@ -58,6 +58,19 @@ loop_start:
 
 print "Loop finished."
 
+' Test GOSUB/RETURN
+print ""
+print "--- Testing GOSUB/RETURN ---"
+print "Calling subroutine..."
+gosub my_subroutine
+print "Returned from subroutine."
+goto after_subroutine
+
+my_subroutine:
+  print "Inside subroutine."
+  return
+
+after_subroutine:
 ' Test INPUT
 print ""
 print "--- Testing INPUT ---"
@@ -103,6 +116,11 @@ Counter is
 2
 Loop finished.
 
+--- Testing GOSUB/RETURN ---
+Calling subroutine...
+Inside subroutine.
+Returned from subroutine.
+
 --- Testing INPUT ---
 Please enter your name:
 Hello, 
@@ -125,18 +143,14 @@ echo "$EXPECTED_OUTPUT" > expected.txt
 diff actual.txt expected.txt
 ret_val=$?
 
-####if [ "$ACTUAL_OUTPUT" == "$EXPECTED_OUTPUT" ]; then
 if [ "$ret_val" -ne "1" ]; then
     echo -e "\033[0;32m✅ All tests passed!\033[0m"
-    rm test.basic
+    rm test.basic actual.txt expected.txt
     exit 0
 else
+    diff -y actual.txt expected.txt
     echo -e "\033[0;31m❌ Test failed!\033[0m"
-    echo "--- EXPECTED OUTPUT ---"
-    echo "$EXPECTED_OUTPUT"
-    echo "--- ACTUAL OUTPUT ---"
-    echo "$ACTUAL_OUTPUT"
-    echo "-----------------------"
-    rm test.basic
+    rm test.basic actual.txt expected.txt
     exit 1
 fi
+
